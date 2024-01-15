@@ -1,0 +1,17 @@
+---
+# tasks file for roles/kusama
+  - import_tasks: 002-setup_users.yml
+  - import_tasks: 003-setup_env.yml
+  - import_tasks: 004-relay_chain.yml
+    when: chain_name in relay_chains
+  - import_tasks: 005-system_parachains.yml
+    when: chain_name in system_parachains
+  - import_tasks: 006-nginix.yml
+    when: node_role is "boot"
+    
+  - name: start {{ chain_name | lower }} and enable the service
+    ansible.builtin.systemd:
+      daemon_reload: yes
+      state: started
+      name: "{{ chain_name | lower }}.service"
+      enabled: true

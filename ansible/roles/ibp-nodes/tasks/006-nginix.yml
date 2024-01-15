@@ -1,0 +1,53 @@
+  - name: Install nginix
+    ansible.builtin.apt:
+      update_cache: no
+      name:
+        - nginix
+        - certbot
+        - python3-certbot
+        - python3-certbot-apache
+        - python3-certbot-nginx
+        - python3-certbot-dns-cloudflare
+        - python3-certbot-dns-digitalocean
+        - python3-certbot-dns-dnsimple
+        - python3-certbot-dns-gandi
+        - python3-certbot-dns-gehirn
+        - python3-certbot-dns-google
+        - python3-certbot-dns-linode
+        - python3-certbot-dns-ovh
+        - python3-certbot-dns-rfc2136
+        - python3-certbot-dns-route53
+        - python3-certbot-dns-sakuracloud
+        - python3-certbot-dns-standalone
+      state: present
+
+  - name: Check if SSL certificate has been generated
+    ansible.builtin.stat:
+      path: /etc/letsencrypt/live/{{ node_p2p_bind_dns }}/fullchain.pem
+    register: ssl_certificate
+
+  - name: Setting up certbot (nginx) if ssl file missing
+    ansible.builtin.command: certbot --nginx -noninteractive -d {{ node_p2p_bind_dns }}
+    when: not ssl_certificate.stat.exists
+
+#Copy the sytemd config file for astar
+  - name: Copy nginix config {{  chain_name | lower  }}-bootnode onto the server
+    ansible.builtin.template:
+      src: nginix_bootnode_site.j2
+      dest: "/etc/nginx/sites-enabled/{{  chain_name | lower  }}-bootnode"
+      owner: "{{ chain_name }}"
+      group: "{{ chain_name }}"
+      mode: '0666'
+    notify: restart application
+
+  - name: Allow libp2p port {{ libp2p_ws_port }} for {{ chain_name | lower }}-ws
+    community.general.ufw:
+        rule: allow
+        port: "{{ libp2p_ws_port }}"
+        comment: "Allow libp2p port for {{ chain_name | lower }}-ws"
+
+  - name: Allow libp2p port {{ libp2p_wss_port }} for {{ chain_name | lower }}-wss
+    community.general.ufw:
+        rule: allow
+        port: "{{ libp2p_wss_port }}"
+        comment: "Allow libp2p port for {{ chain_name | lower }}-wss (SSL)"

@@ -1,0 +1,47 @@
+---
+  - name: Creates data directory
+    ansible.builtin.file:
+      path: "/var/lib/{{ chain_name | lower }}"
+      state: directory
+      owner: "{{ chain_name | lower }}"
+      group: "{{ chain_name | lower }}"
+      mode: "775"
+
+  - name: Creates bak directory
+    ansible.builtin.file:
+      path: "/var/lib/{{ chain_name | lower }}/backups"
+      state: directory
+      owner: "{{ chain_name | lower }}"
+      group: "{{ chain_name | lower }}"
+      mode: "775"
+
+  - name: Creates config files directory
+    ansible.builtin.file:
+      path: "/etc/{{ chain_name | lower }}"
+      state: directory
+      owner: "{{ chain_name | lower }}"
+      group: "{{ chain_name | lower }}"
+      mode: "775"
+
+#Copy the sytemd config file for polkadot
+  - name: Copy backup_nodeIdentity.sh onto the server
+    ansible.builtin.template:
+      src: backup_nodeIdentity.sh.j2
+      dest: /root/backup_nodeIdentity.sh
+      owner: root
+      group: root
+      mode: 'u+x'
+    when: node_role == 'boot'
+
+  - name: Allow libp2p port {{ libp2p_port }} for {{ chain_name | lower }}
+    community.general.ufw:
+        rule: allow
+        port: "{{ libp2p_port }}"
+        comment: "Allow libp2p port for {{ chain_name | lower }}"
+
+  - name: Allow libp2p port {{ embedded_relay_libp2p_port }} for {{ chain_name | lower }}-embedded-relay
+    community.general.ufw:
+        rule: allow
+        port: "{{ embedded_relay_libp2p_port }}"
+        comment: "Allow libp2p port for {{ chain_name | lower }}-embedded-relay"
+    when: chain_name not in relay_chains

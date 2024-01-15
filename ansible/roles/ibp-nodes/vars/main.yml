@@ -1,0 +1,8 @@
+---
+# vars file for roles/kusama
+  local_admin_users: ""
+
+  node_name: ""
+  node_key: ""
+  chain_name: ""
+  node_p2p_bind_dns: ""

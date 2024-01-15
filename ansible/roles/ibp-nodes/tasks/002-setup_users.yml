@@ -1,0 +1,32 @@
+---
+  - name: Ensure group {{ chain_name | lower }} exists
+    ansible.builtin.group:
+      name: "{{ chain_name | lower }}"
+      state: present
+
+  - name: create {{ chain_name | lower }} user account
+    ansible.builtin.user:
+      name: "{{ chain_name | lower }}"
+      group: "{{ chain_name | lower }}"
+      shell: /sbin/nologin
+      append: true
+      create_home: false
+      state: present
+
+  - name: Give local {{ chain_name | lower }} group administrative permissions over the service
+    community.general.sudoers:
+      name: "{{ chain_name | lower }}-administrators"
+      state: present
+      group: "{{ chain_name | lower }}"
+      runas: root
+      nopassword: true
+      commands: 
+        - {{ local_users_sudoers_commands }}
+
+  - name: adding local user {{ item }} to group {{ chain_name | lower }}
+    user:
+      name: "{{ item }}"
+      group: "{{ chain_name | lower }}"
+      append: yes
+    with_items: "{{ local_admin_users }}"
+    when: local_admin_users is not ""

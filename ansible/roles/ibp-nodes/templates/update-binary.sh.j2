@@ -1,0 +1,38 @@
+#!/bin/bash
+
+{% if chain_name in relay_chains %}
+export DEBIAN_FRONTEND=noninteractive
+ver=$(polkadot --version | cut -d ' ' -f2- | cut -d '-' -f1)
+
+cp /usr/bin/{{ chain_name | lower }} /root/bak/{{ chain_name | lower }}$ver
+
+apt update
+
+systemctl stop {{ chain_name | lower }}.service
+
+apt install -y parity-keyring polkadot
+
+systemctl restart {{ chain_name | lower }}.service
+
+journalctl -efu {{ chain_name | lower }}.service
+
+
+{% else %}
+release= $(curl --silent "https://api.github.com/repos/{{ github_organization }}/{{ github_repo_name }}/releases/latest" |
+    grep '"tag_name":' |                                            
+    sed -E 's/.*"([^"]+)".*/\1/' | cut -d '-' -f2- )
+
+wget -O /tmp/{{ chain_name | lower }} https://github.com/{{ github_organization }}/{{ github_repo_name }}/releases/download/polkadot-$release/polkadot-parachain
+
+cp /usr/local/bin/{{ chain_name | lower }} /var/lib/{{ chain_name | lower }}/backups
+
+cp /tmp/{{ chain_name | lower }} /usr/local/bin/{{ chain_name | lower }}
+
+chown {{ chain_name | lower }}:{{ chain_name | lower }} /usr/local/bin/{{ chain_name | lower }}
+
+/var/lib/{{ chain_name | lower }}/backups
+
+chmod +x /usr/local/bin/{{ chain_name | lower }}
+
+journalctl -efu {{ chain_name | lower }}.service
+{% end if %}

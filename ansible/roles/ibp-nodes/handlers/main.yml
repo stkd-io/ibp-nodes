@@ -1,0 +1,8 @@
+---
+# handlers file for substrate
+  - name: restart application
+    ansible.builtin.systemd:
+      daemon_reload: yes
+      state: restarted
+      name: "{{ chain_name | lower }}.service"
+      enabled: true

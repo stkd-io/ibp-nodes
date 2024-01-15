@@ -1,0 +1,29 @@
+---
+  - name: Getting parity PGP Key
+    run_once: true
+    ansible.builtin.apt_key:
+      keyserver: 'hkps://keys.mailvelope.com'
+      id: '9D4B2B6EB8F97156D19669A9FF0812D491B96798'
+      keyring: '/usr/share/keyrings/parity.gpg'
+
+  - name: Add the polkadot repository
+    run_once: true
+    ansible.builtin.apt_repository:
+      repo: 'deb [signed-by=/usr/share/keyrings/parity.gpg] https://releases.parity.io/deb release main'
+
+  - name: Update & Install polkadot binary, parity-keyring
+    ansible.builtin.apt:
+      update_cache: yes
+      name:
+        - parity-keyring
+        - polkadot
+
+#Copy the sytemd config file for polkadot
+  - name: Copy polkadot.service onto the server
+    ansible.builtin.template:
+      src: polkadot.service.j2
+      dest: "/etc/systemd/system/{{ chain_name | lower }}.service"
+      owner: root
+      group: root
+      mode: '0644'
+    notify: restart application

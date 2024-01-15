@@ -1,0 +1,48 @@
+[Unit]
+  Description="{{ chain_name }} {{ node_role }}"
+
+[Service]
+  User={{ chain_name }}
+  Group={{ chain_name }}
+  Restart=on-failure
+  RestartSec=120
+
+ExecStart=/usr/bin/polkadot \
+  --no-hardware-benchmarks \
+  --chain {{ chain_name }} \
+  --base-path /var/lib/{{ chain_name }} \
+  --name {{ node_name }} \
+  {% if warp %}
+  --sync warp \
+  {% endif %}
+  --telemetry-url '{{ telemetry_url }}' \
+  --port {{ libp2p_port }} \
+  --prometheus-port {{ prometheus_port }} \
+  --rpc-port {{ rpc_port }} \
+  {% if node_role == 'rpc' %}
+  --rpc-external \
+  --rpc-methods {{ rpc_methods }} \
+  --state-pruning archive \
+  --blocks-pruning archive \
+  --rpc-cors all \
+  --runtime-cache-size={{ runtime_cache_size }} \
+  --max-runtime-instances={{ max_runtime_instances }} \
+  --rpc-max-request-size={{ rpc_max_request_size }} \
+  --rpc-max-response-size={{ rpc_max_response_size }} \
+  --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection } \
+  --rpc-max-connections={{ rpc_max_connections }} \
+  {% elif node_role == 'boot' %}
+  --node-key {{ node_key }} \
+  --state-pruning {{ state_pruning }} \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_ws_port }}/ws \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_wss_port }}/wss \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_wss_port }}/wss
+  {% else %}
+  --state-pruning {{ state_pruning }}
+  {%- endif %}"
+
+[Install]
+WantedBy=multi-user.target

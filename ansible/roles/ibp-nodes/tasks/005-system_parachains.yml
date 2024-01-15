@@ -1,0 +1,49 @@
+---
+  - name: Clear application_version
+    ansible.builtin.set_fact:
+      polkadot_sdk_github_release:
+
+  - block:
+      - name: Determine latest GitHub release (local)
+        become: false
+        uri:
+          url: "https://api.github.com/repos/paritytech/polkadot-sdk/releases/latest"
+          body_format: json
+        register: polkadot_sdk_github_release
+        until: polkadot_sdk_github_release.status == 200
+        retries: 5
+        delegate_to: localhost
+
+      - name: Set application
+        set_fact:
+          application_version: "{{ polkadot_sdk_github_release.json.tag_name
+            | regex_replace('^v?(.*)$', '\\1') }}"
+        when: (application_version is not defined) or (application_version == 'latest')
+
+  #https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.5.0/polkadot-parachain
+  - name: Download and verify SHA256 checksum
+    become: false
+    get_url:
+      url: "https://github.com/paritytech/polkadot-sdk/releases/download/{{ application_version }}/polkadot-parachain"
+      dest: "/tmp/polkadot-parachain"
+    notify: restart application
+    register: binary
+
+  - name: Copy {{ chain_name | lower }} binary
+    ansible.builtin.copy:
+      src: "{{ binary.dest }}"
+      remote_src: 'yes'
+      dest: /usr/local/bin/{{ chain_name | lower }}
+      owner: '{{ chain_name | lower }}'
+      group: '{{ chain_name | lower }}'
+      mode: 'a+x'
+
+#Copy the sytemd config file for astar
+  - name: Copy {{  chain_name | lower  }}.service onto the server
+    ansible.builtin.template:
+      src: system_parachain.service.j2
+      dest: "/etc/systemd/system/{{  chain_name | lower  }}.service"
+      owner: "{{ chain_name | lower }}"
+      group: "{{ chain_name | lower }}"
+      mode: '0664'
+    notify: restart application

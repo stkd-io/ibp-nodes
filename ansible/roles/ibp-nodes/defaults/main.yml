@@ -1,0 +1,60 @@
+---
+# defaults file for roles/kusama
+  relay_chain:
+    - "polkadot"
+    - "kusama"
+    - "westend"
+    - "paseo"
+
+  system_parachains:
+    - "asset-hub-kusama"
+    - "asset-hub-polkadot"
+    - "asset-hub-rococo"
+    - "asset-hub-westend"
+    - "asset-hub-wococo"
+    - "bridge-hub-kusama"
+    - "bridge-hub-polkadot"
+    - "bridge-hub-rococo"
+    - "bridge-hub-westend"
+    - "bridge-hub-wococo"
+    - "contracts-rococo"
+    - "people-rococo"
+    - "people-westend"
+
+  local_users_sudoers_commands:
+    - /usr/bin/journalctl -efu {{chain_name | lower}}
+    - /usr/bin/journalctl -efu {{chain_name | lower}}.service
+    - /usr/bin/journalctl -fu {{chain_name | lower}}
+    - /usr/bin/journalctl -fu {{chain_name | lower}}.service
+    - /usr/bin/systemctl start {{chain_name | lower}}
+    - /usr/bin/systemctl start {{chain_name | lower}}.service
+    - /usr/bin/systemctl stop {{chain_name | lower}}
+    - /usr/bin/systemctl stop {{chain_name | lower}}.service
+    - /usr/bin/systemctl restart {{chain_name | lower}}
+    - /usr/bin/systemctl restart {{chain_name | lower}}.service
+
+  state_pruning: "256"
+  runtime_cache_size: "64"
+  max_runtime_instances: "256"
+  warp: false
+  
+  telemetry_url: 'wss://telemetry.polkadot.io/submit/ 0'
+  
+  rpc_port: "9933"
+  ws_port: "9943"
+  libp2p_port: "30333"
+  libp2p_ws_port: "30433"
+  libp2p_wss_port: "30533"
+  prometheus_port: "9613"
+
+
+  embedded_relay_rpc_port: "9934"
+  embedded_relay_ws_port: "9944"
+  embedded_relay_libp2p_port: "30334"
+  embedded_relay_prometheus_port: "9614"
+
+  rpc_max_request_size: "1"
+  rpc_max_response_size: "4"
+  rpc_max_subscriptions_per_connection: "512"
+  rpc_max_connections: "10000"
+  rpc_methods: "Safe"
