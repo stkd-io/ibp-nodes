@@ -1,5 +1,5 @@
 server {
-      listen       {{ bootnode_wss_port }} ssl http2 default_server;
+      listen       {{ libp2p_wss_port }} ssl http2 default_server;
       server_name  {{ node_p2p_bind_dns }};
       root         /var/www/html;
 

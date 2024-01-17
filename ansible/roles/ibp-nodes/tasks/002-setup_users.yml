@@ -15,13 +15,12 @@
 
   - name: Give local {{ chain_name | lower }} group administrative permissions over the service
     community.general.sudoers:
-      name: "{{ chain_name | lower }}-administrators"
+      name: "{{ chain_name | lower }}_administrators"
       state: present
       group: "{{ chain_name | lower }}"
       runas: root
       nopassword: true
-      commands: 
-        - {{ local_users_sudoers_commands }}
+      commands: "{{ local_users_sudoers_commands }}"
 
   - name: adding local user {{ item }} to group {{ chain_name | lower }}
     user:
@@ -29,4 +28,4 @@
       group: "{{ chain_name | lower }}"
       append: yes
     with_items: "{{ local_admin_users }}"
-    when: local_admin_users is not ""
+    when: local_admin_users

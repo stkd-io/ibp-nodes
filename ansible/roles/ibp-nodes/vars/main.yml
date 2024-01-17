@@ -2,6 +2,7 @@
 # vars file for roles/kusama
   local_admin_users: ""
 
+  acme_email: ""
   node_name: ""
   node_key: ""
   chain_name: ""

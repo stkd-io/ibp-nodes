@@ -1,5 +1,5 @@
 [Unit]
-  Description="{{ chain_name }} {{ node_role }}"
+  Description="{{ chain_name }} {{ node_role }} Node"
 
 [Service]
   User={{ chain_name }}
@@ -18,8 +18,8 @@ ExecStart=/usr/bin/polkadot \
   --telemetry-url '{{ telemetry_url }}' \
   --port {{ libp2p_port }} \
   --prometheus-port {{ prometheus_port }} \
-  --rpc-port {{ rpc_port }} \
   {% if node_role == 'rpc' %}
+  --rpc-port {{ rpc_port }} \
   --rpc-external \
   --rpc-methods {{ rpc_methods }} \
   --state-pruning archive \
@@ -29,7 +29,7 @@ ExecStart=/usr/bin/polkadot \
   --max-runtime-instances={{ max_runtime_instances }} \
   --rpc-max-request-size={{ rpc_max_request_size }} \
   --rpc-max-response-size={{ rpc_max_response_size }} \
-  --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection } \
+  --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection }} \
   --rpc-max-connections={{ rpc_max_connections }} \
   {% elif node_role == 'boot' %}
   --node-key {{ node_key }} \
@@ -42,7 +42,7 @@ ExecStart=/usr/bin/polkadot \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_wss_port }}/wss
   {% else %}
   --state-pruning {{ state_pruning }}
-  {%- endif %}"
+  {% endif %}
 
 [Install]
 WantedBy=multi-user.target

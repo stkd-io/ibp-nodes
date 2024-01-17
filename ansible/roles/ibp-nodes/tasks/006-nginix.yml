@@ -1,8 +1,8 @@
-  - name: Install nginix
+  - name: Install nginx
     ansible.builtin.apt:
       update_cache: no
       name:
-        - nginix
+        - nginx
         - certbot
         - python3-certbot
         - python3-certbot-apache
@@ -26,8 +26,21 @@
       path: /etc/letsencrypt/live/{{ node_p2p_bind_dns }}/fullchain.pem
     register: ssl_certificate
 
+  - name: Delete content & directory
+    ansible.builtin.file:
+      state: absent
+      path: /var/www/html/*
+
+  - name: Allow https port for nginix ssl
+    community.general.ufw:
+        rule: allow
+        port: "https"
+        comment: "Allow https traffic for acme domain verification"
+    when: not ssl_certificate.stat.exists
+
+
   - name: Setting up certbot (nginx) if ssl file missing
-    ansible.builtin.command: certbot --nginx -noninteractive -d {{ node_p2p_bind_dns }}
+    ansible.builtin.command: certbot --nginx -noninteractive --agree-tos -m {{ acme_email }} -d {{ node_p2p_bind_dns }} --no-eff-email
     when: not ssl_certificate.stat.exists
 
 #Copy the sytemd config file for astar

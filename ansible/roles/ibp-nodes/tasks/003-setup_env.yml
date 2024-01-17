@@ -23,15 +23,45 @@
       group: "{{ chain_name | lower }}"
       mode: "775"
 
+  - name: Creates /root/bak/ directory
+    ansible.builtin.file:
+      path: "/root/bak/"
+      state: directory
+      owner: "root"
+      group: "root"
+      mode: "700"
+
+  - name: Creates /opt/scripts/ directory
+    ansible.builtin.file:
+      path: "/opt/scripts/"
+      state: directory
+      owner: "{{ chain_name | lower }}"
+      group: "{{ chain_name | lower }}"
+      mode: "777"
+
 #Copy the sytemd config file for polkadot
   - name: Copy backup_nodeIdentity.sh onto the server
     ansible.builtin.template:
       src: backup_nodeIdentity.sh.j2
-      dest: /root/backup_nodeIdentity.sh
+      dest: /opt/scripts/backup_nodeIdentity.sh
       owner: root
       group: root
-      mode: 'u+x'
+      mode: 'a+x'
     when: node_role == 'boot'
+
+  - name: Copy netstat.sh onto the server
+    ansible.builtin.copy:
+      src: netstat.sh
+      dest: /opt/scripts/netstat.sh
+      owner: root
+      group: root
+      mode: 'a+x'
+
+  - name: Install baseline packages
+    ansible.builtin.apt:
+      update_cache: yes
+      name:
+        - net-tools
 
   - name: Allow libp2p port {{ libp2p_port }} for {{ chain_name | lower }}
     community.general.ufw:
@@ -44,4 +74,4 @@
         rule: allow
         port: "{{ embedded_relay_libp2p_port }}"
         comment: "Allow libp2p port for {{ chain_name | lower }}-embedded-relay"
-    when: chain_name not in relay_chains
+    when: "chain_name in system_parachains"
