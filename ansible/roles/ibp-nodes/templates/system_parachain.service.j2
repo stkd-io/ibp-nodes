@@ -15,11 +15,11 @@ ExecStart=/usr/local/bin/{{ chain_name | lower }} \
   --prometheus-port {{ prometheus_port }} \
   --base-path /var/lib/{{ chain_name }} \
   --name {{ node_name }} \
-  {% if warp %}
+{% if warp %}
   --sync warp \
   {% endif %}
   --telemetry-url '{{ telemetry_url }}' \
-  {% if node_role == 'rpc' %}
+{% if node_role == 'rpc' %}
   --rpc-external \
   --rpc-methods {{ rpc_methods }} \
   --rpc-max-connections {{ rpc_max_connections }} \
@@ -32,7 +32,7 @@ ExecStart=/usr/local/bin/{{ chain_name | lower }} \
   --rpc-max-response-size={{ rpc_max_response_size }} \
   --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection } \
   --rpc-max-connections={{ rpc_max_connections }}
-  {% elif node_role == 'boot' %}
+{% elif node_role == 'boot' %}
   --node-key {{ node_key }} \
   --state-pruning {{ state_pruning }} \
   --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
@@ -41,7 +41,7 @@ ExecStart=/usr/local/bin/{{ chain_name | lower }} \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_wss_port }}/wss
-  {% else %}
+{% else %}
   --state-pruning {{ state_pruning }}
   {% endif %}
   -- \

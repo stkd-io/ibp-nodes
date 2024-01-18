@@ -35,7 +35,7 @@
 
   state_pruning: "256"
   runtime_cache_size: "64"
-  max_runtime_instances: "256"
+  max_runtime_instances: "32"
   warp: false
   
   telemetry_url: 'wss://telemetry.polkadot.io/submit/ 0'
@@ -47,6 +47,7 @@
   libp2p_wss_port: "30533"
   prometheus_port: "9613"
 
+  do_them_qol_things: false
 
   embedded_relay_rpc_port: "9934"
   embedded_relay_ws_port: "9944"

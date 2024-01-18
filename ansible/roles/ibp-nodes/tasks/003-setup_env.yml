@@ -30,6 +30,7 @@
       owner: "root"
       group: "root"
       mode: "700"
+    when: do_them_qol_things
 
   - name: Creates /opt/scripts/ directory
     ansible.builtin.file:
@@ -56,6 +57,7 @@
       owner: root
       group: root
       mode: 'a+x'
+    when: do_them_qol_things
 
   - name: Install baseline packages
     ansible.builtin.apt:

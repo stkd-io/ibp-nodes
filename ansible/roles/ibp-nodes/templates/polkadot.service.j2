@@ -12,13 +12,12 @@ ExecStart=/usr/bin/polkadot \
   --chain {{ chain_name }} \
   --base-path /var/lib/{{ chain_name }} \
   --name {{ node_name }} \
-  {% if warp %}
+{% if warp %}
   --sync warp \
   {% endif %}
   --telemetry-url '{{ telemetry_url }}' \
-  --port {{ libp2p_port }} \
   --prometheus-port {{ prometheus_port }} \
-  {% if node_role == 'rpc' %}
+{% if node_role == 'rpc' %}
   --rpc-port {{ rpc_port }} \
   --rpc-external \
   --rpc-methods {{ rpc_methods }} \
@@ -31,7 +30,11 @@ ExecStart=/usr/bin/polkadot \
   --rpc-max-response-size={{ rpc_max_response_size }} \
   --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection }} \
   --rpc-max-connections={{ rpc_max_connections }} \
-  {% elif node_role == 'boot' %}
+  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_ws_port }}/ws \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws
+{% elif node_role == 'boot' %}
   --node-key {{ node_key }} \
   --state-pruning {{ state_pruning }} \
   --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
@@ -40,7 +43,8 @@ ExecStart=/usr/bin/polkadot \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws \
   --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_wss_port }}/wss
-  {% else %}
+{% else %}
+  --port {{ libp2p_port }} \
   --state-pruning {{ state_pruning }}
   {% endif %}
 

@@ -38,7 +38,6 @@
         comment: "Allow https traffic for acme domain verification"
     when: not ssl_certificate.stat.exists
 
-
   - name: Setting up certbot (nginx) if ssl file missing
     ansible.builtin.command: certbot --nginx -noninteractive --agree-tos -m {{ acme_email }} -d {{ node_p2p_bind_dns }} --no-eff-email
     when: not ssl_certificate.stat.exists
