@@ -12,13 +12,13 @@ ExecStart=/usr/bin/polkadot \
   --chain {{ chain_name }} \
   --base-path /var/lib/{{ chain_name }} \
   --name {{ node_name }} \
+  --port {{ libp2p_port }} \
 {% if warp %}
   --sync warp \
-  {% endif %}
+{% endif %}
   --telemetry-url '{{ telemetry_url }}' \
   --prometheus-port {{ prometheus_port }} \
 {% if node_role == 'rpc' %}
-  --rpc-port {{ rpc_port }} \
   --rpc-external \
   --rpc-methods {{ rpc_methods }} \
   --state-pruning archive \
@@ -30,20 +30,24 @@ ExecStart=/usr/bin/polkadot \
   --rpc-max-response-size={{ rpc_max_response_size }} \
   --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection }} \
   --rpc-max-connections={{ rpc_max_connections }} \
-  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
-  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_ws_port }}/ws \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws
+  --listen-addr /ip4/0.0.0.0/tcp/{{ rpc_port }} \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ ws_port }}/ws \
+  --public-addr=/dns/{{ node_fqdn }}/tcp/{{ rpc_port }} \
+  --public-addr=/dns/{{ node_fqdn }}/tcp/{{ ws_port }}/ws
 {% elif node_role == 'boot' %}
+{% if node_key != "" %}
   --node-key {{ node_key }} \
+{% endif %}
+{% if node_key_file != "" %}
+  --node-key-file {{ node_key_file }} \
+{% endif %}
   --state-pruning {{ state_pruning }} \
-  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
-  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_ws_port }}/ws \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_wss_port }}/wss
+  --listen-addr /ip4/0.0.0.0/tcp/{{ rpc_port }} \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ ws_port }}/ws \
+  --public-addr=/dns/{{ node_fqdn }}/tcp/{{ rpc_port }} \
+  --public-addr=/dns/{{ node_fqdn }}/tcp/{{ ws_port }}/ws \
+  --public-addr=/dns/{{ node_fqdn }}/tcp/{{ wss_port }}/wss
 {% else %}
-  --port {{ libp2p_port }} \
   --state-pruning {{ state_pruning }}
   {% endif %}
 

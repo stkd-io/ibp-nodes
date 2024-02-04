@@ -77,3 +77,10 @@
         port: "{{ embedded_relay_libp2p_port }}"
         comment: "Allow libp2p port for {{ chain_name | lower }}-embedded-relay"
     when: "chain_name in system_parachains"
+
+  - name: Allow rpc port {{ rpc_port }} for {{ chain_name | lower }}-rpc
+    community.general.ufw:
+        rule: allow
+        port: "{{ rpc_port }}"
+        comment: "Allow rpc port for {{ chain_name | lower }}-rpc"
+    when: node_role == "boot" or node_role == "rpc"

@@ -5,5 +5,6 @@
   acme_email: ""
   node_name: ""
   node_key: ""
+  node_key_file: ""
   chain_name: ""
-  node_p2p_bind_dns: ""
+  node_fqdn: ""

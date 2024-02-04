@@ -40,17 +40,15 @@
   
   telemetry_url: 'wss://telemetry.polkadot.io/submit/ 0'
   
-  rpc_port: "9933"
-  ws_port: "9943"
+  rpc_port: "30433"
+  ws_port: "30533"
+  wss_port: "30633"
   libp2p_port: "30333"
-  libp2p_ws_port: "30433"
-  libp2p_wss_port: "30533"
   prometheus_port: "9613"
 
   do_them_qol_things: false
 
   embedded_relay_rpc_port: "9934"
-  embedded_relay_ws_port: "9944"
   embedded_relay_libp2p_port: "30334"
   embedded_relay_prometheus_port: "9614"
 

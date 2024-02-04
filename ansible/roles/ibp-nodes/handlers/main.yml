@@ -6,3 +6,10 @@
       state: restarted
       name: "{{ chain_name | lower }}.service"
       enabled: true
+
+  - name: restart nginx
+    ansible.builtin.systemd:
+      daemon_reload: yes
+      state: restarted
+      name: "nginx.service"
+      enabled: true

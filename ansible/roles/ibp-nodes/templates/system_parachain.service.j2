@@ -10,7 +10,6 @@
 ExecStart=/usr/local/bin/{{ chain_name | lower }} \
   --no-hardware-benchmarks \
   --chain {{ chain_name }} \
-  --rpc-port {{ rpc_port }} \
   --port {{ libp2p_port }} \
   --prometheus-port {{ prometheus_port }} \
   --base-path /var/lib/{{ chain_name }} \
@@ -33,15 +32,21 @@ ExecStart=/usr/local/bin/{{ chain_name | lower }} \
   --rpc-max-subscriptions-per-connection={{ rpc_max_subscriptions_per_connection } \
   --rpc-max-connections={{ rpc_max_connections }}
 {% elif node_role == 'boot' %}
-  --node-key {{ node_key }} \
+  {% if node_key != "" %}
+    --node-key {{ node_key }} \
+  {% endif %}
+  {% if node_key_file != "" %}
+    --node-key-file {{ node_key_file }} \
+  {% endif %}
   --state-pruning {{ state_pruning }} \
-  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_port }} \
-  --listen-addr /ip4/0.0.0.0/tcp/{{ libp2p_ws_port }}/ws \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_port }} \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_ws_port }}/ws \
-  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ libp2p_wss_port }}/wss
+  --listen-addr /ip4/0.0.0.0/tcp/{{ rpc_port }} \
+  --listen-addr /ip4/0.0.0.0/tcp/{{ ws_port }}/ws \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ rpc_port }} \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ ws_port }}/ws \
+  --public-addr=/dns/{{ node_p2p_bind_dns }}/tcp/{{ wss_port }}/wss
 {% else %}
-  --state-pruning {{ state_pruning }}
+  --state-pruning {{ state_pruning }} \
+  --rpc-port {{ rpc_port }} \
 {% endif %}
   -- \
   --name "{{ node_name }}-embedded-relay" \
