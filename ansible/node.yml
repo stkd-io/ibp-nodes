@@ -1,27 +1,27 @@
-#ansible-playbook -i inventory.ini site.yml -u root
+#ansible-playbook -i "inventory.ini," node.yml -u root
 ---
   - hosts: "*"
     become: true
     roles:
-      - role: ansible/roles/ibp-nodes
-        node_name: "kusama-bootnode-STKD-01"
+      - role: roles/ibp-nodes
+        node_name: "stkd-us-ksm-bp-01"
         chain_name: "kusama"
-        rpc_port: "9935"
         libp2p_port: "30333"
-        prometheus_port: "9615"
+        rpc_port: "30433"
+        ws_port: "30533"
+        wss_port: "30633"
+        prometheus_port: "9613"
         node_role: "boot"
-        node_p2p_bind_dns: "kusama-bootnode-STKD-01.bootnodes.stkd.io"
-        local_admin_users:
-          - greg 
-          - steeve
+        acme_email: ""
+        warp: true
+        node_fqdn: "us-ksm-01.bootnodes.stkd.io"
         
-      - role: ansible/roles/ibp-nodes
-        node_name: "kusama-rpc-STKD-01"
-        chain_name: "kusama"
-        rpc_port: "9936"
-        libp2p_port: "30336"
-        prometheus_port: "9616"
-        node_role: "rpc"
-        local_admin_users:
-          - greg 
-          - steeve
+      # - role: roles/ibp-nodes
+      #   node_name: "stkd-us-ksm-rp-01"
+      #   chain_name: "kusama"
+      #   rpc_port: "9936"
+      #   libp2p_port: "30336"
+      #   libp2p_ws_port: "30337"
+      #   prometheus_port: "9616"
+      #   node_role: "rpc"
+      #   node_p2p_bind_dns: "us-ksm-01.rpc.stkd.io"
