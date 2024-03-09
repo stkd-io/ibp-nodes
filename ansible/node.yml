@@ -1,20 +1,37 @@
-#ansible-playbook -i "inventory.ini," node.yml -u root
+#ansible-playbook -i "inventory," node.yml -u root
 ---
   - hosts: "*"
     become: true
     roles:
-      - role: roles/ibp-nodes
-        node_name: "stkd-us-ksm-bp-01"
-        chain_name: "kusama"
-        libp2p_port: "30333"
-        rpc_port: "30433"
-        ws_port: "30533"
-        wss_port: "30633"
-        prometheus_port: "9613"
-        node_role: "boot"
-        acme_email: ""
-        warp: true
-        node_fqdn: "us-ksm-01.bootnodes.stkd.io"
+      - role: haproxy
+        haproxy_config:
+          chains:
+            - name: "polkadot"
+              rpc_port: "5000"
+              wss_port: "5001"
+              servers:
+                - ipAdress: "192.168.2.43"
+                - ipAdress: "192.168.2.42"
+                - ipAdress: "192.168.2.44"
+            - name: "hydradx"
+              rpc_port: "5000"
+              wss_port: "5001"
+              servers:
+                - ipAdress: "192.168.2.50"
+                - ipAdress: "192.168.2.51"
+
+      # - role: roles/ibp-nodes
+      #   node_name: "stkd-us-ksm-bp-01"
+      #   chain_name: "kusama"
+      #   libp2p_port: "30333"
+      #   rpc_port: "30433"
+      #   ws_port: "30533"
+      #   wss_port: "30633"
+      #   prometheus_port: "9613"
+      #   node_role: "boot"
+      #   acme_email: ""
+      #   warp: true
+      #   node_fqdn: "us-ksm-01.bootnodes.stkd.io"
         
       # - role: roles/ibp-nodes
       #   node_name: "stkd-us-ksm-rp-01"

@@ -1,0 +1,22 @@
+vrrp_instance {{ instance_name }} {
+  state {{ state }}
+  interface {{ interface }}
+  virtual_router_id {{ virtual_router_id }}
+  priority {{ priority }}
+  advert_int {{ advert_int }}
+  authentication {
+    auth_type PASS
+    auth_pass {{ auth_pass }}
+  }
+  virtual_ipaddress {
+    {{ virtual_ipaddress }}
+  }
+    track_process {
+        chk_service
+    }
+}
+
+vrrp_track_process chk_service {
+    process haproxy
+    weight 0
+}

@@ -1,0 +1,9 @@
+---
+# defaults file for haproxy
+instance_name: "VR_1"
+virtual_router_id: 10
+priority: 100
+advert_int: 1
+
+balance: "leastconn"
+mode: "http"

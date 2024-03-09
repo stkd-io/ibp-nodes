@@ -1,0 +1,29 @@
+---
+  - name: Installing haproxy
+    ansible.builtin.apt:
+      update_cache: yes
+      name: haproxy
+      state: present
+
+  - name: Ensure group haproxy exists
+    ansible.builtin.group:
+      name: haproxy
+      state: present
+
+  - name: create haproxy user account
+    ansible.builtin.user:
+      name: haproxy
+      groups: haproxy
+      shell: /sbin/nologin
+      append: true
+      create_home: false
+      state: present
+
+  - name: Template a file to /etc/haproxy/haproxy.cfg
+    ansible.builtin.template:
+      src: haproxy.cfg.j2
+      dest: /etc/haproxy/haproxy.cfg
+      owner: haproxy
+      group: haproxy
+      mode: '0644'
+

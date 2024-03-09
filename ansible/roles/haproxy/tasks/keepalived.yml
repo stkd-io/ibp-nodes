@@ -1,0 +1,28 @@
+---
+# tasks file for haproxy
+  - name: Install keepalived
+    ansible.builtin.apt:
+      update_cache: yes
+      name: keepalived
+      state: present
+
+  - name: Ensure group keepalived exists
+    ansible.builtin.group:
+      name: keepalived
+      state: present
+
+  - name: create keepalived user account
+    ansible.builtin.user:
+      name: keepalived
+      groups: keepalived
+      shell: /sbin/nologin
+      append: true
+      create_home: false
+      state: present
+
+  - name: Template a file to /etc/file.conf
+    ansible.builtin.template:
+      src: keepalived.conf.j2
+      dest: /etc/keepalived/keepalived.conf
+      owner: keepalived
+      group: keepalived

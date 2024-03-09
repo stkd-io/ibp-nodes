@@ -1,0 +1,72 @@
+global
+   log 127.0.0.1 local0
+   chroot /var/lib/haproxy
+   pidfile /var/run/haproxy.pid
+   maxconn 250000
+   user  haproxy
+   group haproxy
+   daemon
+   nbthread 8
+   server-state-base /opt/haproxy/etc/state/
+   tune.bufsize 131072
+   tune.ssl.default-dh-param 4096
+   stats socket /var/run/haproxy.sock mode 600 level admin
+   stats timeout 2m
+   maxcompcpuusage 50
+
+defaults
+   log global
+   retries 3
+   # option http-use-htx
+   maxconn 250000
+   timeout connect 5s
+   timeout client 300s
+   timeout server 300s
+   timeout queue 25s
+
+####
+#
+# RELAYCHAIN CONFIGURATIONS
+#
+####
+# Polkadot WSS configuration (for rpc nodes)
+
+frontend relaychains-frontend
+   bind *:443 ssl crt /etc/pki/certs
+   mode http
+   timeout client 300s
+
+   # Web sockets
+   acl wss hdr(Upgrade) -i websocket 
+
+   # Relay chains
+{% for server in haproxy_config['chains'] | default([]) %}
+   acl {{ server['name'] }} path_beg -i /{{ server['name'] }}
+{% endfor %}
+
+   # WSS Paths
+{% for server in haproxy_config['chains'] | default([]) %}
+   use_backend {{ server['name'] }}-wss-backend if {{ server['name'] }} wss
+{% endfor %}
+
+   # RPC Paths
+{% for server in haproxy_config['chains'] | default([]) %}
+   use_backend {{ server['name'] }}-rpc-backend if {{ server['name'] }} !wss
+{% endfor %}
+
+{% for server in haproxy_config['chains'] | default([]) %}
+   backend {{ server['name'] }}-wss-backend
+      mode {{ mode }}
+      balance {{ balance }}
+   {% for x in server['servers'] %}
+         server {{ server['name'] }}-wss-{{ loop.index }} {{ x['ipAdress'] }}:{{ server['wss_port'] }} check inter 2s maxconn 40
+   {% endfor %}
+
+   backend {{ server['name'] }}-rpc-backend
+      mode {{ mode }}
+      balance {{ balance }}
+   {% for x in server['servers'] %}
+         server {{ server['name'] }}-rpc-{{ loop.index }} {{ x['ipAdress'] }}:{{ server['rpc_port'] }} check inter 2s maxconn 40
+   {% endfor %}
+
+{% endfor %}

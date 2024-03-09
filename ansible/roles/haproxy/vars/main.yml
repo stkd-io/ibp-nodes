@@ -1,0 +1,7 @@
+---
+# vars file for haproxy
+auth_pass: ""
+state: ""
+interface: ""
+virtual_ipaddress: 
+  - ""

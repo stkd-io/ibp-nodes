@@ -1,0 +1,5 @@
+---
+# tasks file for haproxy
+  #- ansible.builtin.import_tasks: keepalived.yml
+
+  - ansible.builtin.import_tasks: haproxy.yml
