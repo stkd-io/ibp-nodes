@@ -1,4 +1,7 @@
 ---
+#net.ipv4.ip_nonlocal_bind sysctl to 1
+#11. Well-known traps to avoid
+#https://docs.haproxy.org/2.7/management.html#11
 # tasks file for haproxy
   - name: Install keepalived
     ansible.builtin.apt:
