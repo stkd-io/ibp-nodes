@@ -5,10 +5,11 @@ virtual_router_id: 10
 priority: 100
 advert_int: 1
 
+haproxy_wss_rpc_port: "443"
 balance: "leastconn"
 mode: "http"
 
-haproxy_prometheus_port: "8405"
+haproxy_prometheus_metrics_port: "8405"
 haproxy_prometheus_mode: "http"
 
 haproxy_archival_rpc_port: "9933"
