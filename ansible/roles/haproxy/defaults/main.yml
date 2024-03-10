@@ -7,3 +7,17 @@ advert_int: 1
 
 balance: "leastconn"
 mode: "http"
+
+haproxy_prometheus_port: "8405"
+haproxy_prometheus_mode: "http"
+
+haproxy_archival_rpc_port: "9933"
+haproxy_archival_wss_port: "9945"
+
+haproxy_bootnode_wss_port: "30335"
+haproxy_bootnode_wss_mode: "tcp"
+haproxy_bootnode_balance: "leastconn"
+
+haproxy_libp2p_port: "30333"
+haproxy_libp2p_mode: "tcp"
+haproxy_libp2p_balance: "leastconn"

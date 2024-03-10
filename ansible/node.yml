@@ -9,16 +9,29 @@
             - name: "polkadot"
               rpc_port: "5000"
               wss_port: "5001"
-              servers:
+              libp2p_port: "30333"
+              nodes:
                 - ipAdress: "192.168.2.43"
+                  external_hostname: "kusama.rpc-01"
                 - ipAdress: "192.168.2.42"
+                  external_hostname: "kusama.rpc-02"
                 - ipAdress: "192.168.2.44"
+                  external_hostname: "kusama.rpc-03"  
             - name: "hydradx"
               rpc_port: "5000"
               wss_port: "5001"
-              servers:
+              nodes:
                 - ipAdress: "192.168.2.50"
+                  external_hostname: "hydradx.rpc-03"  
                 - ipAdress: "192.168.2.51"
+                  external_hostname: "hydradx.rpc-03"  
+        bootnodes_wss_config:
+          nodes:
+            - external_hostname: "kusama.bootnode"
+              ipAdress: "192.168.2.50"
+            - external_hostname: "polkadot.bootnode"
+              ipAdress: "192.168.2.51"
+              wss_port: "5001"
 
       # - role: roles/ibp-nodes
       #   node_name: "stkd-us-ksm-bp-01"
