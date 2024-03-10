@@ -43,7 +43,7 @@ frontend prometheus
 # ARCHIVAL NODE CONFIGURATIONS
 #
 ################################################################
-# Polkadot WSS/RPC configuration (for archival nodes)
+# Polkadot WSS/RPC configuration
 frontend relaychains-frontend
    bind *:{{ haproxy_wss_rpc_port }} ssl crt /etc/pki/certs
    mode {{ mode }}
@@ -52,17 +52,19 @@ frontend relaychains-frontend
    # Web sockets
    acl wss hdr(Upgrade) -i websocket 
 
-   # Relay chains
+   # Route to backend based on path
 {% for chain in haproxy_config['chains'] | default([]) %}
    acl {{ chain['name'] }} path_beg -i /{{ chain['name'] }}
 {% endfor %}
 
    # WSS Paths
+   # If traffic is WSS use the -wss- backend
 {% for chain in haproxy_config['chains'] | default([]) %}
    use_backend {{ chain['name'] }}-wss-backend if {{ chain['name'] }} wss
 {% endfor %}
 
    # RPC Paths
+   # If traffic is not WSS use the -rpc- backend
 {% for chain in haproxy_config['chains'] | default([]) %}
    use_backend {{ chain['name'] }}-rpc-backend if {{ chain['name'] }} !wss
 {% endfor %}
@@ -106,23 +108,16 @@ frontend bootnodes
    acl {{ node['external_hostname'] }}-bootnodes-backend hdr(host) -i {{ node['external_hostname'] }}.*
 {% endfor %}
 
+   #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
 {% for node in bootnodes_wss_config['nodes'] | default([]) %}
    backend {{ node['external_hostname'] }}-bootnodes-backend
       mode {{ node['wss_mode'] | default( haproxy_bootnode_wss_mode, true) }}
       balance {{ node['balance'] | default( haproxy_bootnode_balance, true) }}
-      #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
       option http-server-close
       timeout tunnel 1h
          server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['wss_port']  | default( haproxy_bootnode_wss_port, true) }} check inter 2s maxconn 40
+
 {% endfor %}
-
-
-################################################################
-#
-# END BOOTNODES CONFIGURATIONS
-#
-################################################################
-
 
 ################################################################
 #
@@ -134,40 +129,47 @@ frontend libp2p
    bind *:{{ haproxy_libp2p_port }}
    mode {{ haproxy_libp2p_mode }}
 
-#Libp2p for archival node
+   ###############################################################
+   #Libp2p for archival node
+   ##############################################################
 {% for chain in haproxy_config['chains'] | default([]) %}
-   {% for node in chain['nodes'] | default([]) %}
-      acl {{ node['external_hostname'] }}-libp2p-backend hdr(host) -i {{ node['external_hostname'] }}.*
-   {% endfor %}
-
-      # libp2p Paths
-   {% for node in chain['nodes'] | default([]) %}
-      use_backend {{ node['external_hostname'] }}-libp2p-backend
-   {% endfor %}
-
-   {% for node in chain['nodes'] | default([]) %}
-      backend {{ node['external_hostname'] }}-libp2p-backend
-         mode {{ node['haproxy_libp2p_mode'] | default( haproxy_libp2p_mode, true) }}
-         balance {{ node['haproxy_libp2p_balance'] | default( haproxy_libp2p_balance, true) }}
-            server {{ node['external_hostname'] }}-libp2p {{ node['ipAdress'] }}:{{ node['libp2p_port'] | default( haproxy_libp2p_port, true) }} check inter 2s maxconn 40
-   {% endfor %}
+{% for node in chain['nodes'] | default([]) %}
+   acl {{ node['external_hostname'] }}-libp2p-backend hdr(host) -i {{ node['external_hostname'] }}.*
+{% endfor %}
 {% endfor %}
 
-#Libp2p for bootnodes
+   # libp2p Paths
+{% for chain in haproxy_config['chains'] | default([]) %}
+{% for node in chain['nodes'] | default([]) %}
+   use_backend {{ node['external_hostname'] }}-libp2p-backend
+{% endfor %}
+{% endfor %}
+
+{% for chain in haproxy_config['chains'] | default([]) %}
+{% for node in chain['nodes'] | default([]) %}
+   backend {{ node['external_hostname'] }}-libp2p-backend
+      mode {{ node['haproxy_libp2p_mode'] | default( haproxy_libp2p_mode, true) }}
+      balance {{ node['haproxy_libp2p_balance'] | default( haproxy_libp2p_balance, true) }}
+         server {{ node['external_hostname'] }}-libp2p {{ node['ipAdress'] }}:{{ node['libp2p_port'] | default( haproxy_libp2p_port, true) }} check inter 2s maxconn 40
+
+{% endfor %}
+{% endfor %}
+   ###############################################################
+   #Libp2p for bootnodes
+   ###############################################################
 {% for node in bootnodes_wss_config['nodes'] | default([]) %}
-      acl {{ node['external_hostname'] }}-libp2p-backend hdr(host) -i {{ node['external_hostname'] }}.*
-
-      # libp2p Paths
-      use_backend {{ node['external_hostname'] }}-libp2p-backend
-
-      backend {{ node['external_hostname'] }}-libp2p-backend
-         mode {{ node['haproxy_libp2p_mode'] | default( haproxy_libp2p_mode, true) }}
-         balance {{ node['haproxy_libp2p_balance'] | default( haproxy_libp2p_balance, true) }}
-            server {{ node['external_hostname'] }}-libp2p {{ node['ipAdress'] }}:{{ node['libp2p_port'] | default( haproxy_libp2p_port, true) }} check inter 2s maxconn 40
+   acl {{ node['external_hostname'] }}-libp2p-backend hdr(host) -i {{ node['external_hostname'] }}.*
 {% endfor %}
 
-################################################################
-#
-# END LIBP2P CONFIGURATIONS
-#
-################################################################
+   # libp2p Paths
+{% for node in bootnodes_wss_config['nodes'] | default([]) %}
+   use_backend {{ node['external_hostname'] }}-libp2p-backend
+{% endfor %}
+
+{% for node in bootnodes_wss_config['nodes'] | default([]) %}
+   backend {{ node['external_hostname'] }}-libp2p-backend
+      mode {{ node['haproxy_libp2p_mode'] | default( haproxy_libp2p_mode, true) }}
+      balance {{ node['haproxy_libp2p_balance'] | default( haproxy_libp2p_balance, true) }}
+         server {{ node['external_hostname'] }}-libp2p {{ node['ipAdress'] }}:{{ node['libp2p_port'] | default( haproxy_libp2p_port, true) }} check inter 2s maxconn 40
+
+{% endfor %}

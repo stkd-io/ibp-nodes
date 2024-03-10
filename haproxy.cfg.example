@@ -1,0 +1,205 @@
+global
+   log 127.0.0.1 local0
+   chroot /var/lib/haproxy
+   pidfile /var/run/haproxy.pid
+   maxconn 250000
+   user  haproxy
+   group haproxy
+   daemon
+   nbthread 8
+   server-state-base /opt/haproxy/etc/state/
+   tune.bufsize 131072
+   tune.ssl.default-dh-param 4096
+   stats socket /var/run/haproxy.sock mode 600 level admin
+   stats timeout 2m
+   maxcompcpuusage 50
+
+defaults
+   log global
+   retries 3
+   # option http-use-htx
+   maxconn 250000
+   timeout connect 5s
+   timeout client 300s
+   timeout server 300s
+   timeout queue 25s
+
+################################################################
+#
+# PROMETHEUS CONFIGURATIONS
+#
+################################################################
+# Expose prometheus metrics on 
+frontend prometheus
+   bind localhost:8405
+   mode http
+   http-request use-service prometheus-exporter if { path /metrics }
+   stats enable
+   stats uri /stats
+   stats refresh 10s
+
+################################################################
+#
+# ARCHIVAL NODE CONFIGURATIONS
+#
+################################################################
+# Polkadot WSS/RPC configuration
+frontend relaychains-frontend
+   bind *:443 ssl crt /etc/pki/certs
+   mode http
+   timeout client 300s
+
+   # Web sockets
+   acl wss hdr(Upgrade) -i websocket 
+
+   # Route to backend based on path
+   acl polkadot path_beg -i /polkadot
+   acl hydradx path_beg -i /hydradx
+
+   # WSS Paths
+   # If traffic is WSS use the -wss- backend
+   use_backend polkadot-wss-backend if polkadot wss
+   use_backend hydradx-wss-backend if hydradx wss
+
+   # RPC Paths
+   # If traffic is not WSS use the -rpc- backend
+   use_backend polkadot-rpc-backend if polkadot !wss
+   use_backend hydradx-rpc-backend if hydradx !wss
+
+   backend polkadot-wss-backend
+      mode http
+      balance leastconn
+      #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
+      option http-server-close
+      timeout tunnel 1h
+            server kusama.rpc-01 192.168.2.43:5001 check inter 2s maxconn 40
+            server kusama.rpc-02 192.168.2.42:5001 check inter 2s maxconn 40
+            server kusama.rpc-03 192.168.2.44:5001 check inter 2s maxconn 40
+   
+   backend polkadot-rpc-backend
+      mode http
+      balance leastconn
+            server kusama.rpc-01 192.168.2.43:5000 check inter 2s maxconn 40
+            server kusama.rpc-02 192.168.2.42:5000 check inter 2s maxconn 40
+            server kusama.rpc-03 192.168.2.44:5000 check inter 2s maxconn 40
+   
+   backend hydradx-wss-backend
+      mode http
+      balance leastconn
+      #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
+      option http-server-close
+      timeout tunnel 1h
+            server hydradx.rpc-03 192.168.2.50:5001 check inter 2s maxconn 40
+            server hydradx.rpc-03 192.168.2.51:5001 check inter 2s maxconn 40
+   
+   backend hydradx-rpc-backend
+      mode http
+      balance leastconn
+            server hydradx.rpc-03 192.168.2.50:5000 check inter 2s maxconn 40
+            server hydradx.rpc-03 192.168.2.51:5000 check inter 2s maxconn 40
+   
+
+################################################################
+#
+# BOOTNODES CONFIGURATIONS
+#
+################################################################
+# Expose bootnodes wss
+# haproxy just forwards the traffic to the bootnode.
+frontend bootnodes
+   bind *:30335
+   mode tcp
+
+   # Web sockets
+   acl wss hdr(Upgrade) -i websocket 
+
+   # WSS Paths
+   acl kusama.bootnode-bootnodes-backend hdr(host) -i kusama.bootnode.*
+   acl polkadot.bootnode-bootnodes-backend hdr(host) -i polkadot.bootnode.*
+
+   #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
+   backend kusama.bootnode-bootnodes-backend
+      mode tcp
+      balance leastconn
+      option http-server-close
+      timeout tunnel 1h
+         server kusama.bootnode 192.168.2.50:30335 check inter 2s maxconn 40
+
+   backend polkadot.bootnode-bootnodes-backend
+      mode tcp
+      balance leastconn
+      option http-server-close
+      timeout tunnel 1h
+         server polkadot.bootnode 192.168.2.51:5001 check inter 2s maxconn 40
+
+
+################################################################
+#
+# LIBP2P CONFIGURATIONS
+#
+################################################################
+# Expose libp2p
+frontend libp2p
+   bind *:30333
+   mode tcp
+
+   ###############################################################
+   #Libp2p for archival node
+   ##############################################################
+   acl kusama.rpc-01-libp2p-backend hdr(host) -i kusama.rpc-01.*
+   acl kusama.rpc-02-libp2p-backend hdr(host) -i kusama.rpc-02.*
+   acl kusama.rpc-03-libp2p-backend hdr(host) -i kusama.rpc-03.*
+   acl hydradx.rpc-03-libp2p-backend hdr(host) -i hydradx.rpc-03.*
+   acl hydradx.rpc-03-libp2p-backend hdr(host) -i hydradx.rpc-03.*
+
+   # libp2p Paths
+   use_backend kusama.rpc-01-libp2p-backend
+   use_backend kusama.rpc-02-libp2p-backend
+   use_backend kusama.rpc-03-libp2p-backend
+   use_backend hydradx.rpc-03-libp2p-backend
+   use_backend hydradx.rpc-03-libp2p-backend
+
+   backend kusama.rpc-01-libp2p-backend
+      mode tcp
+      balance leastconn
+         server kusama.rpc-01-libp2p 192.168.2.43:30333 check inter 2s maxconn 40
+
+   backend kusama.rpc-02-libp2p-backend
+      mode tcp
+      balance leastconn
+         server kusama.rpc-02-libp2p 192.168.2.42:30333 check inter 2s maxconn 40
+
+   backend kusama.rpc-03-libp2p-backend
+      mode tcp
+      balance leastconn
+         server kusama.rpc-03-libp2p 192.168.2.44:30333 check inter 2s maxconn 40
+
+   backend hydradx.rpc-03-libp2p-backend
+      mode tcp
+      balance leastconn
+         server hydradx.rpc-03-libp2p 192.168.2.50:30333 check inter 2s maxconn 40
+
+   backend hydradx.rpc-03-libp2p-backend
+      mode tcp
+      balance leastconn
+         server hydradx.rpc-03-libp2p 192.168.2.51:30333 check inter 2s maxconn 40
+
+   ###############################################################
+   #Libp2p for bootnodes
+   ###############################################################
+   acl kusama.bootnode-libp2p-backend hdr(host) -i kusama.bootnode.*
+   acl polkadot.bootnode-libp2p-backend hdr(host) -i polkadot.bootnode.*
+
+   # libp2p Paths
+   use_backend kusama.bootnode-libp2p-backend
+   use_backend polkadot.bootnode-libp2p-backend
+
+   backend kusama.bootnode-libp2p-backend
+      mode tcp
+      balance leastconn
+         server kusama.bootnode-libp2p 192.168.2.50:30333 check inter 2s maxconn 40
+
+   backend polkadot.bootnode-libp2p-backend
+      mode tcp
+      balance leastconn
+         server polkadot.bootnode-libp2p 192.168.2.51:30333 check inter 2s maxconn 40
