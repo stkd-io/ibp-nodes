@@ -22,3 +22,5 @@ haproxy_bootnode_balance: "leastconn"
 haproxy_libp2p_port: "30333"
 haproxy_libp2p_mode: "tcp"
 haproxy_libp2p_balance: "leastconn"
+
+keepalived_ip_nonlocal_bind: "1"

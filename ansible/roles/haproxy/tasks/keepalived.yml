@@ -23,9 +23,40 @@
       create_home: false
       state: present
 
-  - name: Template a file to /etc/file.conf
+  - name: Template keepalived.conf
     ansible.builtin.template:
       src: keepalived.conf.j2
       dest: /etc/keepalived/keepalived.conf
       owner: keepalived
       group: keepalived
+
+#source: https://github.com/Oefenweb/ansible-keepalived
+#
+  - block:
+    - name: allow binding non-local IPv4
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_nonlocal_bind
+        value: "{{ keepalived_ip_nonlocal_bind | string }}"
+        reload: true
+        state: present
+      when: keepalived_ip_nonlocal_bind | bool
+
+    - name: check if IPv6 is enabled
+      ansible.builtin.slurp:
+        src: /sys/module/ipv6/parameters/disable
+      register: _ipv6_disabled
+
+    - name: set ipv6_enabled fact
+      ansible.builtin.set_fact:
+        is_ipv6_enabled: "{{ not _ipv6_disabled.failed and '0' in (_ipv6_disabled.content | b64decode) }}"
+
+    - name: allow binding non-local IPv6
+      ansible.posix.sysctl:
+        name: net.ipv6.ip_nonlocal_bind
+        value: "{{ keepalived_ip_nonlocal_bind | string }}"
+        reload: true
+        state: present
+      when:
+        - keepalived_ip_nonlocal_bind | bool
+        - is_ipv6_enabled
+        
