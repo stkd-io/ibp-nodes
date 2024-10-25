@@ -1,0 +1,10 @@
+---
+- name: Get version
+  ansible.builtin.command: "{{ binary }} --version"
+  register: version_output
+  failed_when: version_output.rc != 0
+  changed_when: false
+
+- name: Display version
+  ansible.builtin.debug:
+    msg: "Software version: [{{ version_output.stdout }}]"

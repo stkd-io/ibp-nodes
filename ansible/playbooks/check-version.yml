@@ -1,0 +1,11 @@
+# ansible-playbook -i inventories/prod/vegas.ini playbooks/check-version.yml -l bifrost_kusama -e 'binary=bifrost-kusama'
+---
+- name: Check the binary --version and output
+  hosts: "*"
+  gather_facts: false
+  become: false
+  vars:
+    binary: "polkadot"
+  tasks:
+    - name: Import
+      ansible.builtin.import_tasks: modules/check-binary-version.yml
