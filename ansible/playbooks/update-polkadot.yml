@@ -1,0 +1,49 @@
+---
+- name: Update Polkadot (APT)
+  hosts: "*"
+  gather_facts: true
+  become: true
+  vars:
+    package:
+      - "parity-keyring"
+      - "polkadot"
+    # service_name:
+    apt_update_cache: true
+    apt_clean: false
+    apt_autoremove: false
+  tasks:
+    - name: Update package to latest version
+      notify:
+        - Restart application
+        - Daemon reload
+      ansible.builtin.apt:
+        name: "{{ package }}"
+        state: latest
+        update_cache: "{{ apt_update_cache }}"
+        clean: "{{ apt_clean }}"
+        autoremove: "{{ apt_autoremove }}"
+
+    # Restart required?
+    - name: Check if reboot is needed
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: check_reboot
+
+    # Initate system restart
+    - name: Reboot system
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible due to system updates"
+        pre_reboot_delay: 180
+        post_reboot_delay: 300
+        reboot_timeout: 900
+      when: check_reboot.stat.exists
+
+  handlers:
+    - name: Restart application
+      ansible.builtin.systemd:
+        state: restarted
+        name: "{{ service_name }}.service"
+
+    - name: Daemon reload
+      ansible.builtin.systemd:
+        daemon_reload: true

@@ -1,0 +1,15 @@
+# ansible-playbook -i ansible/inventories/prod/chile.ini ansible/playbooks/restart-service.yml -b -e 'service_name=prometheus' --check
+---
+- name: Restart a systemctl service
+  hosts: "*"
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Daemon reload
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart application
+      ansible.builtin.systemd:
+        state: restarted
+        name: "{{ service_name }}.service"
