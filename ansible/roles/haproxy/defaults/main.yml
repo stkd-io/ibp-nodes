@@ -1,11 +1,7 @@
 ---
-# defaults file for haproxy
-instance_name: "VR_1"
-virtual_router_id: 10
-priority: 100
-advert_int: 1
-
 haproxy_wss_rpc_port: "443"
+haproxy_ssl_enable: false
+
 balance: "leastconn"
 mode: "http"
 
@@ -15,12 +11,15 @@ haproxy_prometheus_mode: "http"
 haproxy_archival_rpc_port: "9933"
 haproxy_archival_wss_port: "9945"
 
-haproxy_bootnode_wss_port: "30335"
-haproxy_bootnode_wss_mode: "tcp"
+haproxy_bootnode_wss_port: "30633"
+haproxy_bootnode_wss_mode: "http"
+
+haproxy_bootnode_ws_port: "30533"
+haproxy_bootnode_ws_mode: "http"
+
 haproxy_bootnode_balance: "leastconn"
 
 haproxy_libp2p_port: "30333"
-haproxy_libp2p_mode: "tcp"
+haproxy_embedded_relay_libp2p_port: "30334"
+haproxy_libp2p_mode: "http"
 haproxy_libp2p_balance: "leastconn"
-
-keepalived_ip_nonlocal_bind: "1"

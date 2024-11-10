@@ -1,5 +1,5 @@
 global
-   log 127.0.0.1 local0
+   log stderr local0
    chroot /var/lib/haproxy
    pidfile /var/run/haproxy.pid
    maxconn 250000
@@ -10,9 +10,10 @@ global
    server-state-base /opt/haproxy/etc/state/
    tune.bufsize 131072
    tune.ssl.default-dh-param 4096
-   stats socket /var/run/haproxy.sock mode 600 level admin
+   stats socket /var/run/haproxy/admin.sock level admin mode 660
    stats timeout 2m
    maxcompcpuusage 50
+   # setenv ACCOUNT_THUMBPRINT ''
 
 defaults
    log global
@@ -29,66 +30,109 @@ defaults
 # PROMETHEUS CONFIGURATIONS
 #
 ################################################################
-# Expose prometheus metrics on 
+# Expose prometheus metrics on
 frontend prometheus
-   bind localhost:{{ haproxy_prometheus_metrics_port }}
+   bind *:{{ haproxy_prometheus_metrics_port }}
    mode {{ haproxy_prometheus_mode }}
    http-request use-service prometheus-exporter if { path /metrics }
-   stats enable
-   stats uri /stats
-   stats refresh 10s
+   no log
 
 ################################################################
 #
-# ARCHIVAL NODE CONFIGURATIONS
+# HEALTH CHECK CONFIGURATIONS
+#
+################################################################
+frontend http_health_check
+   bind 0.0.0.0:60001
+   mode http
+   monitor-uri /health
+
+################################################################
+#
+# STATS PAGE CONFIGURATIONS
+#
+################################################################
+listen stats
+    bind :1936
+    mode http
+    stats enable
+    stats hide-version
+    stats realm Haproxy\ Statistics
+    stats uri /
+    stats auth admin:Kh5vVHubk8iVy
+
+################################################################
+#
+# ACME CONFIGURATIONS
+#
+################################################################
+# Expose acme on
+#frontend web
+#    mode http
+#    bind 0.0.0.0:80
+#    bind 0.0.0.0:443 ssl crt /etc/haproxy/certs/ strict-sni
+#    http-request return status 200 content-type text/plain lf-string "%[path,field(-1,/)].${ACCOUNT_THUMBPRINT}\n" if { path_beg '/.well-known/acme-challenge/' }
+
+{% if rpc_config is defined %}
+################################################################
+#
+# RPC NODE CONFIGURATIONS
 #
 ################################################################
 # Polkadot WSS/RPC configuration
-frontend relaychains-frontend
-   bind *:{{ haproxy_wss_rpc_port }} ssl crt /etc/pki/certs
+frontend rpc-frontend
+   bind 0.0.0.0:{{ haproxy_wss_rpc_port }} ssl crt /etc/haproxy/certs/ strict-sni
    mode {{ mode }}
    timeout client 300s
 
    # Web sockets
-   acl wss hdr(Upgrade) -i websocket 
+   acl wss hdr(Upgrade) -i websocket
 
    # Route to backend based on path
-{% for chain in haproxy_config['chains'] | default([]) %}
+{% for chain in rpc_config['chains'] | default([]) %}
    acl {{ chain['name'] }} path_beg -i /{{ chain['name'] }}
 {% endfor %}
 
    # WSS Paths
    # If traffic is WSS use the -wss- backend
-{% for chain in haproxy_config['chains'] | default([]) %}
+{% for chain in rpc_config['chains'] | default([]) %}
    use_backend {{ chain['name'] }}-wss-backend if {{ chain['name'] }} wss
 {% endfor %}
 
    # RPC Paths
    # If traffic is not WSS use the -rpc- backend
-{% for chain in haproxy_config['chains'] | default([]) %}
+{% for chain in rpc_config['chains'] | default([]) %}
    use_backend {{ chain['name'] }}-rpc-backend if {{ chain['name'] }} !wss
 {% endfor %}
 
-{% for chain in haproxy_config['chains'] | default([]) %}
+#https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
+{% for chain in rpc_config['chains'] | default([]) %}
    backend {{ chain['name'] }}-wss-backend
       mode {{ mode }}
       balance {{ balance }}
-      #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
-      option http-server-close
-      timeout tunnel 1h
+      option httpchk
+      http-check send meth GET uri /health/readiness
+      http-check expect status 200
+
    {% for node in chain['nodes'] %}
-         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ chain['wss_port'] }} check inter 2s maxconn 40
+         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['rpc_port']  | default( haproxy_bootnode_rpc_internal_port, true) }} check inter 2s maxconn 40
    {% endfor %}
 
    backend {{ chain['name'] }}-rpc-backend
       mode {{ mode }}
       balance {{ balance }}
+      option httpchk
+      http-check send meth GET uri /health/readiness
+      http-check expect status 200
+
    {% for node in chain['nodes'] %}
-         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ chain['rpc_port'] }} check inter 2s maxconn 40
+         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ chain['rpc_port'] | default( haproxy_bootnode_rpc_internal_port, true) }} check inter 2s maxconn 40
    {% endfor %}
 
 {% endfor %}
+{% endif %}
 
+{% if bootnodes_config is defined  %}
 ################################################################
 #
 # BOOTNODES CONFIGURATIONS
@@ -96,80 +140,47 @@ frontend relaychains-frontend
 ################################################################
 # Expose bootnodes wss
 # haproxy just forwards the traffic to the bootnode.
-frontend bootnodes
-   bind *:{{ haproxy_bootnode_wss_port }}
+frontend wss_bootnodes
+   bind 0.0.0.0:{{ haproxy_bootnode_wss_external_port }} ssl crt /etc/haproxy/certs strict-sni
    mode {{ haproxy_bootnode_wss_mode }}
 
+  log-format "%ci:%cp [%t] %ft %b/%s %Tw/%Tc/%Tt %ST %B %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs ssl_sni=%[ssl_fc_sni]"
+
    # Web sockets
-   acl wss hdr(Upgrade) -i websocket 
+   acl wss hdr(Upgrade) -i websocket
 
    # WSS Paths
-{% for node in bootnodes_wss_config['nodes'] | default([]) %}
-   acl {{ node['external_hostname'] }}-bootnodes-backend hdr(host) -i {{ node['external_hostname'] }}.*
+{% for node in bootnodes_config['nodes'] | default([]) %}
+#   acl {{ node['external_hostname'] }}-bootnodes-wss-backend ssl_fc_sni {{ node['external_hostname'] }}
+   use_backend {{ node['external_hostname'] }}-bootnodes-wss-backend if { ssl_fc_sni -i {{ node['external_hostname'] }} }
 {% endfor %}
 
    #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
-{% for node in bootnodes_wss_config['nodes'] | default([]) %}
-   backend {{ node['external_hostname'] }}-bootnodes-backend
+{% for node in bootnodes_config['nodes'] | default([]) %}
+   backend {{ node['external_hostname'] }}-bootnodes-wss-backend
       mode {{ node['wss_mode'] | default( haproxy_bootnode_wss_mode, true) }}
       balance {{ node['balance'] | default( haproxy_bootnode_balance, true) }}
-      option http-server-close
-      timeout tunnel 1h
-         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['wss_port']  | default( haproxy_bootnode_wss_port, true) }} check inter 2s maxconn 40
+      {# option http-server-close
+      timeout tunnel 1h #}
+         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['ws_port']  | default( haproxy_bootnode_wss_internal_port, true) }} check inter 2s maxconn 40
 
 {% endfor %}
 
-################################################################
-#
-# LIBP2P CONFIGURATIONS
-#
-################################################################
-# Expose libp2p
-frontend libp2p
-   bind *:{{ haproxy_libp2p_port }}
-   mode {{ haproxy_libp2p_mode }}
+{# frontend ws_bootnodes
+   bind 0.0.0.0:{{ haproxy_bootnode_ws_port }}
+   mode {{ haproxy_bootnode_ws_mode }}
 
-   ###############################################################
-   #Libp2p for archival node
-   ##############################################################
-{% for chain in haproxy_config['chains'] | default([]) %}
-{% for node in chain['nodes'] | default([]) %}
-   acl {{ node['external_hostname'] }}-libp2p-backend hdr(host) -i {{ node['external_hostname'] }}.*
-{% endfor %}
+   # WS Paths
+{% for node in bootnodes_config['nodes'] | default([]) %}
+   use_backend {{ node['external_hostname'] }}-bootnodes-ws-backend if { hdr(host),field(1,:) -i  {{ node['external_hostname'] }} }
 {% endfor %}
 
-   # libp2p Paths
-{% for chain in haproxy_config['chains'] | default([]) %}
-{% for node in chain['nodes'] | default([]) %}
-   use_backend {{ node['external_hostname'] }}-libp2p-backend
-{% endfor %}
-{% endfor %}
+   #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
+{% for node in bootnodes_config['nodes'] | default([]) %}
+   backend {{ node['external_hostname'] }}-bootnodes-ws-backend
+      mode {{ node['ws_mode'] | default( haproxy_bootnode_ws_mode, true) }}
+      balance {{ node['balance'] | default( haproxy_bootnode_balance, true) }}
+         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['ws_port']  | default( haproxy_bootnode_wss_internal_port, true) }} check inter 2s maxconn 40
 
-{% for chain in haproxy_config['chains'] | default([]) %}
-{% for node in chain['nodes'] | default([]) %}
-   backend {{ node['external_hostname'] }}-libp2p-backend
-      mode {{ node['haproxy_libp2p_mode'] | default( haproxy_libp2p_mode, true) }}
-      balance {{ node['haproxy_libp2p_balance'] | default( haproxy_libp2p_balance, true) }}
-         server {{ node['external_hostname'] }}-libp2p {{ node['ipAdress'] }}:{{ node['libp2p_port'] | default( haproxy_libp2p_port, true) }} check inter 2s maxconn 40
-
-{% endfor %}
-{% endfor %}
-   ###############################################################
-   #Libp2p for bootnodes
-   ###############################################################
-{% for node in bootnodes_wss_config['nodes'] | default([]) %}
-   acl {{ node['external_hostname'] }}-libp2p-backend hdr(host) -i {{ node['external_hostname'] }}.*
-{% endfor %}
-
-   # libp2p Paths
-{% for node in bootnodes_wss_config['nodes'] | default([]) %}
-   use_backend {{ node['external_hostname'] }}-libp2p-backend
-{% endfor %}
-
-{% for node in bootnodes_wss_config['nodes'] | default([]) %}
-   backend {{ node['external_hostname'] }}-libp2p-backend
-      mode {{ node['haproxy_libp2p_mode'] | default( haproxy_libp2p_mode, true) }}
-      balance {{ node['haproxy_libp2p_balance'] | default( haproxy_libp2p_balance, true) }}
-         server {{ node['external_hostname'] }}-libp2p {{ node['ipAdress'] }}:{{ node['libp2p_port'] | default( haproxy_libp2p_port, true) }} check inter 2s maxconn 40
-
-{% endfor %}
+{% endfor %} #}
+{% endif %}

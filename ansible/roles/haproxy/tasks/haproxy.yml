@@ -1,29 +1,54 @@
 ---
-  - name: Installing haproxy
-    ansible.builtin.apt:
-      update_cache: yes
-      name: haproxy
-      state: present
+- name: haproxy | Installing software-properties-common
+  ansible.builtin.apt:
+    update_cache: true
+    name: software-properties-common
 
-  - name: Ensure group haproxy exists
-    ansible.builtin.group:
-      name: haproxy
-      state: present
+- name: haproxy | Add vbernat/haproxy from PPA
+  ansible.builtin.apt_repository:
+    repo: ppa:vbernat/haproxy-3.0
 
-  - name: create haproxy user account
-    ansible.builtin.user:
-      name: haproxy
-      groups: haproxy
-      shell: /sbin/nologin
-      append: true
-      create_home: false
-      state: present
+- name: haproxy | Installing haproxy
+  ansible.builtin.apt:
+    name: "haproxy=3.0.*"
+    state: present
 
-  - name: Template a file to /etc/haproxy/haproxy.cfg
-    ansible.builtin.template:
-      src: haproxy.cfg.j2
-      dest: /etc/haproxy/haproxy.cfg
-      owner: haproxy
-      group: haproxy
-      mode: '0644'
+- name: haproxy | Ensure group haproxy exists
+  ansible.builtin.group:
+    name: haproxy
+    state: present
 
+- name: haproxy | Create haproxy user account
+  ansible.builtin.user:
+    name: haproxy
+    groups: haproxy
+    shell: /sbin/nologin
+    append: true
+    create_home: false
+    state: present
+
+- name: haproxy | Create /etc/haproxy/ if it does not exist
+  ansible.builtin.file:
+    path: /etc/haproxy/
+    owner: haproxy
+    group: haproxy
+    state: directory
+    mode: "0770"
+
+- name: haproxy | Template a file to /etc/haproxy/haproxy.cfg
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: haproxy
+    group: haproxy
+    mode: "0664"
+  notify: reload haproxy
+
+- name: haproxy | Copy all files
+  ansible.builtin.copy:
+    src: certs
+    dest: /etc/haproxy
+    owner: haproxy
+    group: haproxy
+    mode: "0660"
+  notify: reload haproxy
