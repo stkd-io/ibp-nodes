@@ -165,22 +165,4 @@ frontend wss_bootnodes
          server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['ws_port']  | default( haproxy_bootnode_wss_internal_port, true) }} check inter 2s maxconn 40
 
 {% endfor %}
-
-{# frontend ws_bootnodes
-   bind 0.0.0.0:{{ haproxy_bootnode_ws_port }}
-   mode {{ haproxy_bootnode_ws_mode }}
-
-   # WS Paths
-{% for node in bootnodes_config['nodes'] | default([]) %}
-   use_backend {{ node['external_hostname'] }}-bootnodes-ws-backend if { hdr(host),field(1,:) -i  {{ node['external_hostname'] }} }
-{% endfor %}
-
-   #https://www.haproxy.com/documentation/haproxy-configuration-tutorials/load-balancing/websocket/#configure-websockets
-{% for node in bootnodes_config['nodes'] | default([]) %}
-   backend {{ node['external_hostname'] }}-bootnodes-ws-backend
-      mode {{ node['ws_mode'] | default( haproxy_bootnode_ws_mode, true) }}
-      balance {{ node['balance'] | default( haproxy_bootnode_balance, true) }}
-         server {{ node['external_hostname'] }} {{ node['ipAdress'] }}:{{ node['ws_port']  | default( haproxy_bootnode_wss_internal_port, true) }} check inter 2s maxconn 40
-
-{% endfor %} #}
 {% endif %}
