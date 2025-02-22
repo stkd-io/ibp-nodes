@@ -1,0 +1,59 @@
+---
+# Default variables for version-checker role
+
+# Target IP to check
+rpc_host: "127.0.0.1"
+
+# List of ports to test
+ports: [443]
+
+# List of hostnames to test
+hostnames:
+  - "rpc.dotters.network"
+  - "rpc.ibp.network"
+
+# List of paths to test
+paths:
+  - "/polkadot"
+  - "/acala"
+  - "/ajuna"
+  - "/asset-hub-kusama"
+  - "/asset-hub-paseo"
+  - "/asset-hub-polkadot"
+  - "/asset-hub-westend"
+  - "/bifrost-polkadot"
+  - "/bridge-hub-kusama"
+  - "/bridge-hub-paseo"
+  - "/bridge-hub-polkadot"
+  - "/bridge-hub-westend"
+  - "/collectives-polkadot"
+  - "/collectives-westend"
+  - "/coretime-kusama"
+  - "/coretime-paseo"
+  - "/coretime-polkadot"
+  - "/coretime-westend"
+  - "/encointer-kusama"
+  - "/hydradx"
+  - "/hydradx-paras"
+  - "/hydration"
+  - "/invarch"
+  - "/kilt"
+  - "/kusama"
+  - "/moonbeam"
+  - "/mythos"
+  - "/nexus"
+  - "/paseo"
+  - "/people-kusama"
+  - "/people-paseo"
+  - "/people-polkadot"
+  - "/people-westend"
+  - "/polimec"
+  - "/unique"
+  - "/westend"
+
+# SSL expiry warning threshold in days
+ssl_warning_days: 14
+
+# Initialize results arrays
+version_results: []
+ssl_results: []

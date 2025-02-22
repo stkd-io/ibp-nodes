@@ -1,0 +1,67 @@
+---
+- name: Get SSL certificate expiry date
+  ansible.builtin.shell: |
+    set -o pipefail
+    openssl s_client -servername {{ combo.hostname }} \
+                    -connect {{ rpc_host }}:443 \
+                    -verify_hostname {{ combo.hostname }} \
+                    2>/dev/null < /dev/null | \
+    openssl x509 -noout -enddate
+  register: ssl_check
+  changed_when: false
+  failed_when: false
+
+- name: Extract expiry date
+  ansible.builtin.set_fact:
+    expiry_date: "{{ ssl_check.stdout | regex_replace('^notAfter=(.*)$', '\\1') }}"
+  when: ssl_check.stdout is defined and ssl_check.stdout != ""
+
+- name: Convert expiry date to timestamp
+  ansible.builtin.command: >-
+    date -j -f "%b %d %H:%M:%S %Y %Z" "{{ expiry_date }}" "+%s"
+  register: expiry_timestamp
+  changed_when: false
+  failed_when: false
+  when: expiry_date is defined
+
+- name: Get current timestamp
+  ansible.builtin.command: date "+%s"
+  register: current_timestamp
+  changed_when: false
+  when: expiry_timestamp.stdout is defined
+
+- name: Calculate days until expiry
+  ansible.builtin.set_fact:
+    days_until_expiry: "{{ ((expiry_timestamp.stdout|int - current_timestamp.stdout|int) / 86400)|int }}"
+  when: >
+    expiry_timestamp.stdout is defined and
+    current_timestamp.stdout is defined
+
+- name: Check expiry threshold
+  ansible.builtin.set_fact:
+    days_remaining: "{{ days_until_expiry|int if days_until_expiry is defined else 0 }}"
+    is_warning: "{{ (days_until_expiry|int <= 14) if days_until_expiry is defined else true }}"
+    is_valid: "{{ (days_until_expiry|int > 0) if days_until_expiry is defined else false }}"
+
+- name: Set SSL check status
+  ansible.builtin.set_fact:
+    ssl_status: >-
+      {% if is_valid %}
+      SSL expires in {{ days_remaining }} days ({{ 'WARNING' if is_warning else 'OK' }})
+      {% else %}
+      SSL check failed
+      {% endif %}
+
+- name: Collect SSL result
+  ansible.builtin.set_fact:
+    ssl_results: >-
+      {{ ssl_results | default([]) + [{
+        'hostname': combo.hostname,
+        'path': combo.path,
+        'port': combo.port,
+        'expiry_date': expiry_date | default('Unknown'),
+        'days_until_expiry': days_remaining|int,
+        'status': is_valid and not is_warning,
+        'error': ssl_check.stderr | default(''),
+        'status_text': ssl_status
+      }] }}

@@ -1,0 +1,153 @@
+---
+- name: Check version for endpoint
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -s -k -X POST "https://{{ combo.hostname }}:{{ combo.port }}{{ combo.path }}" \
+    --resolve {{ combo.hostname }}:{{ combo.port }}:{{ rpc_host }} \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc": "2.0", "id": 1, "method": "system_version", "params": []}'
+  register: version_response
+  changed_when: false
+  failed_when: false
+
+- name: Debug version response
+  ansible.builtin.debug:
+    msg: "{{ version_response }}"
+  tags: never
+
+- name: Handle version response
+  block:
+    - name: Set version result
+      ansible.builtin.set_fact:
+        version_result: "{{ version_response.stdout | from_json }}"
+      when: version_response.rc == 0 and version_response.stdout | trim != ''
+  rescue:
+    - name: Set empty version result
+      ansible.builtin.set_fact:
+        version_result: {}
+
+- name: Set empty version result if needed
+  ansible.builtin.set_fact:
+    version_result: {}
+  when: version_response.rc != 0 or version_response.stdout | trim == '' or version_result is not defined
+
+- name: Check system health
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -s -k -X POST "https://{{ combo.hostname }}:{{ combo.port }}{{ combo.path }}" \
+    --resolve {{ combo.hostname }}:{{ combo.port }}:{{ rpc_host }} \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc": "2.0", "id": 1, "method": "system_health", "params": []}'
+  register: health_response
+  changed_when: false
+  failed_when: false
+
+- name: Debug health response
+  ansible.builtin.debug:
+    msg: "{{ health_response }}"
+  tags: never
+
+- name: Handle health response
+  block:
+    - name: Set health result
+      ansible.builtin.set_fact:
+        health_result: "{{ health_response.stdout | from_json }}"
+      when: health_response.rc == 0 and health_response.stdout | trim != ''
+  rescue:
+    - name: Set empty health result
+      ansible.builtin.set_fact:
+        health_result: {}
+
+- name: Set empty health result if needed
+  ansible.builtin.set_fact:
+    health_result: {}
+  when: health_response.rc != 0 or health_response.stdout | trim == '' or health_result is not defined
+
+- name: Get latest block
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -s -k -X POST "https://{{ combo.hostname }}:{{ combo.port }}{{ combo.path }}" \
+    --resolve {{ combo.hostname }}:{{ combo.port }}:{{ rpc_host }} \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc": "2.0", "id": 1, "method": "chain_getBlock", "params": []}'
+  register: block_response
+  changed_when: false
+  failed_when: false
+
+- name: Debug block response
+  ansible.builtin.debug:
+    msg: "{{ block_response }}"
+  tags: never
+
+- name: Handle block response
+  block:
+    - name: Set block result
+      ansible.builtin.set_fact:
+        block_result: "{{ block_response.stdout | from_json }}"
+      when: block_response.rc == 0 and block_response.stdout | trim != ''
+  rescue:
+    - name: Set empty block result
+      ansible.builtin.set_fact:
+        block_result: {}
+
+- name: Set empty block result if needed
+  ansible.builtin.set_fact:
+    block_result: {}
+  when: block_response.rc != 0 or block_response.stdout | trim == '' or block_result is not defined
+
+- name: Set block number variables
+  ansible.builtin.set_fact:
+    has_valid_block: >-
+      {{ not block_response.failed and block_result is defined and
+         block_result.result.block.header.number is defined }}
+    block_is_hex: >-
+      {{ block_result.result.block.header.number.startswith('0x')
+         if (not block_response.failed and block_result is defined and
+             block_result.result.block.header.number is defined)
+         else false }}
+
+- name: Convert hex block number
+  ansible.builtin.set_fact:
+    block_num: >-
+      {{ block_result.result.block.header.number[2:] | int(base=16) | string }}
+  when: has_valid_block and block_is_hex
+
+- name: Set decimal block number
+  ansible.builtin.set_fact:
+    block_num: "{{ block_result.result.block.header.number }}"
+  when: has_valid_block and not block_is_hex
+
+- name: Set N/A block number
+  ansible.builtin.set_fact:
+    block_num: "N/A"
+  when: not has_valid_block
+
+- name: Set health variables
+  ansible.builtin.set_fact:
+    is_synced: >-
+      {{ not health_result.result.isSyncing
+         if (not health_response.failed and health_result is defined and
+             health_result.result.isSyncing is defined)
+         else 'N/A' }}
+    peer_count: >-
+      {{ health_result.result.peers
+         if (not health_response.failed and health_result is defined and
+             health_result.result.peers is defined)
+         else 'N/A' }}
+
+- name: Collect version and block result
+  ansible.builtin.set_fact:
+    version_results: "{{ version_results | default([]) + [{ 'hostname': combo.hostname, 'path': combo.path, 'port': combo.port, 'status': version_response.rc == 0 and version_result.result is defined, 'version': version_result.result if version_result.result is defined else 'N/A', 'block_number': block_num, 'is_synced': is_synced, 'peers': peer_count, 'error': version_response.stderr | default('Connection failed') if version_response.rc != 0 else ('Invalid response format' if not version_result.result is defined else ''), 'reachable': version_response.rc == 0 and version_result.result is defined }] }}"
+
+- name: Display summary of unreachable endpoints
+  ansible.builtin.debug:
+    msg: |
+      Summary of endpoint checks:
+      {% for result in version_results %}
+      {% if not result.reachable %}
+      - {{ result.hostname }}:{{ result.port }}{{ result.path }} is unreachable
+        Error: {{ result.error if result.error else 'Connection failed' }}
+      {% endif %}
+      {% endfor %}
+  when: version_results is defined
+  tags: never

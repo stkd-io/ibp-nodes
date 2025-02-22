@@ -1,0 +1,4 @@
+skip_list:
+  - command-instead-of-module # Allow using curl command for better SNI handling
+  - no-changed-when # Tasks use changed_when: false
+  - no-handler # No handlers needed for this playbook

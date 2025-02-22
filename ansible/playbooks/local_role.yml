@@ -1,0 +1,10 @@
+---
+- name: Deploy an ansible role
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Include role
+      ansible.builtin.include_role:
+        name: "{{ role }}"

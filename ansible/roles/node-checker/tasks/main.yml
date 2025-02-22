@@ -1,0 +1,69 @@
+---
+- name: Create original format combinations
+  ansible.builtin.set_fact:
+    original_combinations: "{{ original_combinations | default([]) + [{'hostname': item.0, 'path': item.1, 'port': item.2}] }}"
+  with_nested:
+    - "{{ hostnames }}"
+    - "{{ paths }}"
+    - "{{ ports }}"
+
+- name: Create subdomain format combinations
+  ansible.builtin.set_fact:
+    subdomain_combinations: "{{ subdomain_combinations | default([]) + [{'hostname': (item.1[1:] ~ '.' ~ item.0[4:]), 'path': '/', 'port': item.2}] }}"
+  with_nested:
+    - "{{ hostnames }}"
+    - "{{ paths }}"
+    - "{{ ports }}"
+
+- name: Combine all combinations
+  ansible.builtin.set_fact:
+    combinations: "{{ original_combinations + subdomain_combinations }}"
+
+- name: Check versions for each combination
+  ansible.builtin.include_tasks: check_version.yml
+  loop: "{{ combinations }}"
+  loop_control:
+    loop_var: combo
+    label: "{{ combo.hostname }}{{ combo.path }} - {{ combo.port }}"
+
+- name: Check SSL expiry for each combination
+  ansible.builtin.include_tasks: check_ssl_expiry.yml
+  loop: "{{ combinations }}"
+  loop_control:
+    loop_var: combo
+    label: "{{ combo.hostname }}{{ combo.path }} - {{ combo.port }}"
+
+- name: Display header
+  ansible.builtin.debug:
+    msg: "VERSION AND SSL CHECK SUMMARY"
+
+- name: Display target
+  ansible.builtin.debug:
+    msg: "Target IP: {{ rpc_host }}"
+
+- name: Display results
+  ansible.builtin.debug:
+    msg: |
+      {{ result.hostname }}{{ result.path }}:
+      {% if version.reachable %}
+      Version: {{ version.version }}
+      Block: {{ version.block_number }}
+      Synced: {{ 'Yes' if version.is_synced else 'No' if version.is_synced == false else 'N/A' }}
+      Peers: {{ version.peers }}
+      {{ ssl.status_text }}
+      {% else %}
+      Status: Unreachable
+      Error: {{ version.error if version.error else 'Connection failed' }}
+      {% endif %}
+  vars:
+    version:
+      "{{ version_results | selectattr('hostname', 'equalto', result.hostname) |
+      selectattr('path', 'equalto', result.path) |
+      selectattr('port', 'equalto', result.port) | first }}"
+    ssl: "{{ ssl_results | selectattr('hostname', 'equalto', result.hostname) |
+      selectattr('path', 'equalto', result.path) |
+      selectattr('port', 'equalto', result.port) | first }}"
+  loop: "{{ combinations }}"
+  loop_control:
+    loop_var: result
+    label: "{{ result.hostname }}{{ result.path }}"
