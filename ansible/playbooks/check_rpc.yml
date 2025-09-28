@@ -1,0 +1,63 @@
+- name: Get Latest Block via JSON-RPC with explicit Host header for HAProxy
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  # Reduce verbosity
+  strategy: linear
+  tasks:
+    - name: Get version using curl
+      shell: >
+        curl -s -k -X POST "https://{{ item[0] }}:{{ polkadot_rpc_port }}/{{ item[1] }}"
+        --resolve {{ item[0] }}:{{ polkadot_rpc_port }}:{{ haproxy_ip }}
+        -H "Content-Type: application/json"
+        -d '{"jsonrpc": "2.0", "id": 1, "method": "system_version", "params": []}'
+      with_nested:
+        - "{{ polkadot_rpc_host }}"
+        - "{{ backend_hosts }}"
+      register: version_responses
+      ignore_errors: yes
+      no_log: true
+
+    - name: Get health using curl
+      shell: >
+        curl -s -k -X POST "https://{{ item[0] }}:{{ polkadot_rpc_port }}/{{ item[1] }}"
+        --resolve {{ item[0] }}:{{ polkadot_rpc_port }}:{{ haproxy_ip }}
+        -H "Content-Type: application/json"
+        -d '{"jsonrpc": "2.0", "id": 1, "method": "system_health", "params": []}'
+      with_nested:
+        - "{{ polkadot_rpc_host }}"
+        - "{{ backend_hosts }}"
+      register: health_responses
+      ignore_errors: yes
+      no_log: true
+
+    - name: Process version results
+      set_fact:
+        version_results: "{{ version_results | default([]) + [{'chain': item.item[1], 'host': item.item[0], 'version': (item.stdout | from_json).result | default('Request failed')}] }}"
+      loop: "{{ version_responses.results }}"
+      when: item.stdout is defined and item.stdout | length > 0
+      no_log: true
+
+    - name: Process health results
+      set_fact:
+        health_results: "{{ health_results | default([]) + [{'chain': item.item[1], 'host': item.item[0], 'health': (item.stdout | from_json).result | default('Request failed')}] }}"
+      loop: "{{ health_responses.results }}"
+      when: item.stdout is defined and item.stdout | length > 0
+      no_log: true
+
+    - name: Combine results
+      set_fact:
+        combined_results: "{{ combined_results | default([]) + [{'chain': version_item.chain, 'host': version_item.host, 'version': version_item.version, 'health': health_item.health}] }}"
+      vars:
+        health_item: "{{ health_results | selectattr('chain', 'equalto', version_item.chain) | selectattr('host', 'equalto', version_item.host) | first | default({'health': 'No health data'}) }}"
+      loop: "{{ version_results }}"
+      loop_control:
+        loop_var: version_item
+      no_log: true
+
+    - name: Display results
+      debug:
+        msg: "{{ item.chain | upper }} ({{ item.host }}): Version: {{ item.version }} | Peers: {{ item.health.peers | default('unknown') if item.health is mapping else 'No health data' }} | Syncing: {{ item.health.isSyncing | default('unknown') if item.health is mapping else 'No health data' }}"
+      loop: "{{ combined_results }}"
+      loop_control:
+        label: "{{ item.chain }}"
